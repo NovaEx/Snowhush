@@ -21,8 +21,8 @@ cbuffer Uniforms : register(b0) {
     float4 occluders[16];
     // One while leaves fall instead of snow.
     float autumn;
-    // One while the leaves are cherry blossom petals.
-    float blossom;
+    // Zero for leaves, one for cherry blossom petals, two for hearts.
+    float leafStyle;
     // One while fallen leaves wither away.
     float wilt;
 };
@@ -69,13 +69,25 @@ float3 withered(float seed) {
     return float3(0.78, 0.6, 0.49) * (0.86 + 0.18 * frac(seed * 17.3));
 }
 
+// Two rounded lobes joined to a pointed base. Positive values are inside the heart.
+float heartShape(float2 p) {
+    float x = abs(p.x);
+    float lobe = 0.40 - length(float2(x - 0.33, p.y - 0.25));
+    float base = (0.68 - x - abs(p.y + 0.14)) * 0.7071;
+    return max(lobe, base);
+}
+
+float3 heartColor(float seed) {
+    return lerp(float3(0.94, 0.65, 0.75), float3(1.0, 0.81, 0.87), seed);
+}
+
 // Fallen leaves lying every which way: the topmost at each point shows, the gaps between them in shadow.
 float3 litter(float2 at) {
-    float spacing = blossom > 0.5 ? 4.6 : 6.5;
+    float spacing = leafStyle > 0.5 ? 4.6 : 6.5;
     float2 cell = floor(at / spacing);
     float top = -1.0;
     float margin = 0.0;
-    float3 color = blossom > 0.5 ? float3(0.86, 0.68, 0.74) : float3(0.34, 0.19, 0.08);
+    float3 color = leafStyle > 0.5 ? float3(0.86, 0.68, 0.74) : float3(0.34, 0.19, 0.08);
     for (int j = -1; j <= 1; j++) {
         for (int i = -1; i <= 1; i++) {
             for (int k = 0; k < 3; k++) {
@@ -83,23 +95,25 @@ float3 litter(float2 at) {
                 float2 d = at - (cell + float2(i, j) + float2(hash(c + 7.1), hash(c + 3.3))) * spacing;
                 float angle = hash(c + 11.7) * 6.2832;
                 float2 q = float2(cos(angle) * d.x + sin(angle) * d.y, -sin(angle) * d.x + cos(angle) * d.y);
-                float size = blossom > 0.5 ? 3.2 + 1.6 * hash(c + 2.9) : 3.8 + 2.4 * hash(c + 2.9);
+                float size = leafStyle > 0.5 ? 3.2 + 1.6 * hash(c + 2.9) : 3.8 + 2.4 * hash(c + 2.9);
                 float t = q.x / size;
-                float inside = (1.0 - t * t) * size * (blossom > 0.5 ? 0.62 : 0.45) - abs(q.y);
+                float inside = (1.0 - t * t) * size * (leafStyle > 0.5 ? 0.62 : 0.45) - abs(q.y);
+                if (leafStyle > 1.5) inside = heartShape(q / size) * size;
                 float z = hash(c + 5.9);
                 if (inside > 0.0 && z > top) {
                     top = z;
                     margin = inside;
-                    color = blossom > 0.5 ? petalColor(hash(c + 0.5)) : leafColor(hash(c + 0.5));
+                    float seed = hash(c + 0.5);
+                    color = leafStyle > 1.5 ? heartColor(seed) : leafStyle > 0.5 ? petalColor(seed) : leafColor(seed);
                     // Petals that have lain a while are withering.
-                    if (blossom > 0.5 && hash(c + 9.1) < 0.35 * wilt) {
+                    if (leafStyle > 0.5 && leafStyle < 1.5 && hash(c + 9.1) < 0.35 * wilt) {
                         color = lerp(color, withered(hash(c + 0.5)), 0.3 + 0.6 * hash(c + 4.4));
                     }
                 }
             }
         }
     }
-    return color * ((blossom > 0.5 ? 0.86 : 0.7) + (blossom > 0.5 ? 0.14 : 0.3) * smoothstep(0.0, 0.7, margin));
+    return color * ((leafStyle > 0.5 ? 0.86 : 0.7) + (leafStyle > 0.5 ? 0.14 : 0.3) * smoothstep(0.0, 0.7, margin));
 }
 
 // A leaf's outline at one moment, `p` running across it from -0.5 to 0.5: how far inside it a point is. Gives back how
@@ -281,7 +295,16 @@ float4 flowerAt(float2 p, float seed, float spin, float face, float direction, f
 // a petal curves the way it tumbles, `sense`.
 float4 leafAt(float2 p, float seed, float turn, float flip, float alpha, float warm, float edge, float wither, float direction, float sense,
               float px) {
-    [branch] if (blossom > 0.5) {
+    if (leafStyle > 1.5) {
+        float2 heart = float2(cos(turn) * p.x + sin(turn) * p.y, -sin(turn) * p.x + cos(turn) * p.y) * 2.0;
+        heart.x /= max(abs(flip), 0.55);
+        float shape = heartShape(heart);
+        float aa = max(px * 2.0, 1e-4);
+        float a = smoothstep(-aa, aa, shape) * alpha;
+        float3 color = heartColor(seed) * (0.93 + 0.07 * smoothstep(-0.5, 0.4, heart.y));
+        return float4(color * a, a);
+    }
+    [branch] if (leafStyle > 0.5) {
         [branch] if (frac(seed * 23.3) < 0.035) {
             return flowerAt(p * 2.0, seed, turn, flip, direction, alpha, warm, wither, px * 2.0);
         }
@@ -1002,7 +1025,7 @@ float4 pileFragment(PileOut i) : SV_Target {
     [branch] if (autumn > 0.5) {
         // Deeper in the heap the leaves lie in shadow.
         color = litter(grain);
-        float3 deep = blossom > 0.5 ? float3(0.8, 0.66, 0.72) : float3(0.62, 0.54, 0.5);
+        float3 deep = leafStyle > 0.5 ? float3(0.8, 0.66, 0.72) : float3(0.62, 0.54, 0.5);
         color = lerp(color, color * deep, saturate(1.0 - exp(-depth / 18.0)) * 0.6);
         color *= 0.84 + 0.2 * lit;
     } else {

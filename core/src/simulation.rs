@@ -87,13 +87,14 @@ const LEAF_COVER: f32 = 2.5;
 const RAIN_SHARE: f32 = 0.12;
 
 /// What falls: snow, leaves heaping up where snow would, rain bursting on the windows and running down the glass, or
-/// cherry blossom petals, which fall and heap up as leaves do.
+/// cherry blossom petals or hearts, which fall and heap up as leaves do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Snow,
     Autumn,
     Rain,
     Blossom,
+    Hearts,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -354,10 +355,9 @@ struct Air {
     overflow: Vec<(f32, f32)>,
     gust: Option<Gust>,
     slide_wind: f32,
-    /// Leaves fall instead of snow and heap up where it would: autumn's, or cherry blossom petals.
+    /// Autumn leaves, petals, and hearts use the leaf simulation.
     leafy: bool,
-    /// The leaves are cherry blossom petals.
-    blossom: bool,
+    mode: Mode,
     /// Rain falls instead.
     rain: bool,
     /// How many more leaves the heaps can show coming off them, as `spare_leaves` found it, less those shown since.
@@ -468,7 +468,7 @@ impl SnowSimulation {
                 gust: None,
                 slide_wind: 0.0,
                 leafy: false,
-                blossom: false,
+                mode: Mode::Snow,
                 rain: false,
                 leaf_budget: 0.0,
                 jolt_scale: jolt_scale(height),
@@ -522,13 +522,13 @@ impl SnowSimulation {
         !self.lying.is_empty() || self.layers.iter().any(|layer| layer.top > 0.5)
     }
 
-    /// Leaves fall and heap up: autumn's, or cherry blossom petals.
+    /// Whether the current particles fall and pile up like leaves.
     pub fn leafy(&self) -> bool {
         self.air.leafy
     }
 
     pub fn blossom(&self) -> bool {
-        self.air.blossom
+        self.air.mode == Mode::Blossom
     }
 
     /// Fallen leaves wither away.
@@ -537,15 +537,7 @@ impl SnowSimulation {
     }
 
     pub fn mode(&self) -> Mode {
-        if self.air.blossom {
-            Mode::Blossom
-        } else if self.air.leafy {
-            Mode::Autumn
-        } else if self.air.rain {
-            Mode::Rain
-        } else {
-            Mode::Snow
-        }
+        self.air.mode
     }
 
     /// Another kind falls, starting at once: what falls now turns into the other kind where it is.
@@ -553,8 +545,8 @@ impl SnowSimulation {
         if mode == self.mode() {
             return;
         }
-        self.air.leafy = mode == Mode::Autumn || mode == Mode::Blossom;
-        self.air.blossom = mode == Mode::Blossom;
+        self.air.leafy = matches!(mode, Mode::Autumn | Mode::Blossom | Mode::Hearts);
+        self.air.mode = mode;
         self.air.rain = mode == Mode::Rain;
         self.lying.clear();
         self.update_target();
@@ -747,7 +739,7 @@ impl SnowSimulation {
 
     pub fn write_sprites(&self, buffer: &mut [Sprite]) -> usize {
         let clock = self.air.clock;
-        let blossom = self.air.blossom;
+        let blossom = self.blossom();
         let shown: HashMap<WindowId, usize> = self.ids.iter().enumerate().map(|(li, &id)| (id, li)).collect();
         let lying = self.lying.iter().filter_map(|leaf| {
             let layer = &self.layers[*shown.get(&leaf.layer)?];
@@ -1136,7 +1128,7 @@ impl SnowSimulation {
                 flake.tint_amount = (flake.tint_amount - dt * 1.3).max(0.0);
             }
             let previous_y = flake.position.y;
-            flake.position += motion(&flake, self.air.blossom) * dt;
+            flake.position += motion(&flake, self.blossom()) * dt;
 
             if flake.blown != 0.0 && (flake.position.x < -30.0 || flake.position.x > self.width + 30.0) {
                 self.air.flakes.swap_remove(i);
@@ -1162,7 +1154,7 @@ impl SnowSimulation {
                         self.update_target();
                     }
                     if flake.leaf > 0.0 {
-                        let blossom = self.air.blossom;
+                        let blossom = self.blossom();
                         let flip = if is_flower(blossom, flake.leaf) {
                             flower_tilt(self.air.clock, flake.leaf, flake.phase).0
                         } else {
@@ -2524,9 +2516,13 @@ impl Air {
         }
     }
 
-    /// A cherry blossom petal is drawn about as big as a small leaf: any smaller and its notch would not show.
+    /// Petals and hearts are sized so their notches are visible.
     fn leaf_length(&mut self, depth: f32) -> f32 {
-        if self.blossom { 8.5 + depth * 5.0 + self.random.range(0.0, 1.5) } else { 7.0 + depth * 7.0 + self.random.range(0.0, 2.5) }
+        if matches!(self.mode, Mode::Blossom | Mode::Hearts) {
+            8.5 + depth * 5.0 + self.random.range(0.0, 1.5)
+        } else {
+            7.0 + depth * 7.0 + self.random.range(0.0, 2.5)
+        }
     }
 
     /// A leaf the cursor sweeps along: it goes the cursor's way a little slower, barely lifting, and the air soon

@@ -35,7 +35,7 @@ const GLYPHS: [[[&[u8]; 7]; 2]; 5] = [
     [glyph!("rain-white"), glyph!("rain-black")],
     [glyph!("blossom-white"), glyph!("blossom-black")],
 ];
-const MODES: [Mode; 4] = [Mode::Snow, Mode::Autumn, Mode::Rain, Mode::Blossom];
+const MODES: [Mode; 5] = [Mode::Snow, Mode::Autumn, Mode::Rain, Mode::Blossom, Mode::Hearts];
 const SPONSORS: &str = "https://github.com/sponsors/mbezruchko";
 
 pub struct Tray {
@@ -88,7 +88,7 @@ impl ksni::Tray for Tray {
                 Mode::Snow => 0,
                 Mode::Autumn => 1,
                 Mode::Rain => 3,
-                Mode::Blossom => 4,
+                Mode::Blossom | Mode::Hearts => 4,
             }
         };
         self.glyphs[glyph][usize::from(self.light)].clone()
@@ -141,7 +141,7 @@ impl ksni::Tray for Tray {
                                 Command::Mode { mode, calm: !prefs::animations_enabled() }
                             });
                         }),
-                        options: ["Snow", "Autumn Leaves", "Rain", "Cherry Blossom"]
+                        options: ["Snow", "Autumn Leaves", "Rain", "Cherry Blossom", "Hearts"]
                             .iter()
                             .map(|&label| RadioItem { label: label.into(), ..Default::default() })
                             .collect(),
@@ -171,6 +171,8 @@ impl ksni::Tray for Tray {
                     "Clear Leaves"
                 } else if blossom {
                     "Clear Petals"
+                } else if mode == Mode::Hearts {
+                    "Clear Hearts"
                 } else {
                     "Clear Snow"
                 }
@@ -205,6 +207,8 @@ impl ksni::Tray for Tray {
                             "Wither Leaves"
                         } else if blossom {
                             "Wilt Petals"
+                        } else if mode == Mode::Hearts {
+                            "Fade Hearts"
                         } else {
                             "Melt Snow"
                         }
@@ -227,6 +231,7 @@ impl ksni::Tray for Tray {
                             Mode::Autumn => "Leaves on Windows",
                             Mode::Rain => "Rain on Windows",
                             Mode::Blossom => "Petals on Windows",
+                            Mode::Hearts => "Hearts on Windows",
                         }
                         .into(),
                         checked: settings.snow_on_windows,

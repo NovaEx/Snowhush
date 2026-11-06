@@ -2,9 +2,9 @@ import CoreGraphics
 import Foundation
 import simd
 
-/// What falls: snow, autumn leaves, rain or cherry blossom petals.
+/// What falls: snow, autumn leaves, rain, cherry blossom petals or hearts.
 enum Mode: Int {
-    case snow, autumn, rain, blossom
+    case snow, autumn, rain, blossom, hearts
 }
 
 struct Sprite {
@@ -576,8 +576,8 @@ final class SnowSimulation {
             stirred()
         }
     }
-    /// Leaves fall and heap up: autumn's, or cherry blossom petals.
-    var leafy: Bool { mode == .autumn || mode == .blossom }
+    /// Leaves fall and heap up: autumn leaves, cherry blossom petals, or hearts.
+    var leafy: Bool { mode == .autumn || mode == .blossom || mode == .hearts }
     var blossom: Bool { mode == .blossom }
     var rain: Bool { mode == .rain }
     private var restyled = false
@@ -3298,9 +3298,9 @@ final class SnowSimulation {
         isFlower(seed) ? (seed < 0.5 ? -2.5 : 2.5) : seed - 0.5
     }
 
-    /// A cherry blossom petal is drawn about as big as a small leaf: any smaller and its notch would not show.
+    /// Petals and hearts are sized so their notches are visible.
     private func leafLength(depth: Float) -> Float {
-        blossom ? 8.5 + depth * 5 + random.range(0, 1.5) : 7 + depth * 7 + random.range(0, 2.5)
+        (blossom || mode == .hearts) ? 8.5 + depth * 5 + random.range(0, 1.5) : 7 + depth * 7 + random.range(0, 2.5)
     }
 
     private func wrapped(_ angle: Float) -> Float {

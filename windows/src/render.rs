@@ -26,7 +26,7 @@ use windows_numerics::Matrix3x2;
 
 use snowhush_core::geometry::V2;
 use snowhush_core::halloween::{PUMPKIN_ASPECT, PUMPKIN_CANDLE};
-use snowhush_core::simulation::{COLUMN_WIDTH, PumpkinSprite, SnowSimulation, Sprite};
+use snowhush_core::simulation::{COLUMN_WIDTH, Mode, PumpkinSprite, SnowSimulation, Sprite};
 
 use crate::halloween::{self, SIGN_SCALE};
 use crate::log;
@@ -72,8 +72,8 @@ struct Uniforms {
     occluders: [[f32; 4]; 16],
     /// One while leaves fall instead of snow.
     autumn: f32,
-    /// One while the leaves are cherry blossom petals.
-    blossom: f32,
+    /// Zero for leaves, one for cherry blossom petals, two for hearts.
+    leaf_style: f32,
     /// One while fallen leaves wither away.
     wilt: f32,
     padding: f32,
@@ -525,7 +525,11 @@ impl Surface {
                 pumpkins: std::array::from_fn(|k| pumpkins.get(k).map_or([0.0; 4], |pumpkin| pumpkin.light(glow))),
                 occluders: [[0.0; 4]; 16],
                 autumn: if simulation.leafy() { 1.0 } else { 0.0 },
-                blossom: if simulation.blossom() { 1.0 } else { 0.0 },
+                leaf_style: match simulation.mode() {
+                    Mode::Blossom => 1.0,
+                    Mode::Hearts => 2.0,
+                    _ => 0.0,
+                },
                 wilt: if simulation.wilts() { 1.0 } else { 0.0 },
                 padding: 0.0,
             };

@@ -14,7 +14,7 @@ use wayland_egl::WlEglSurface;
 
 use snowhush_core::geometry::V2;
 use snowhush_core::halloween::{self, PUMPKIN_ASPECT, PUMPKIN_CANDLE, SIGN_CAPTIONS};
-use snowhush_core::simulation::{COLUMN_WIDTH, PumpkinSprite, SnowSimulation, Sprite};
+use snowhush_core::simulation::{COLUMN_WIDTH, Mode, PumpkinSprite, SnowSimulation, Sprite};
 
 const SPRITE_VERTEX: &str = include_str!("shaders/sprite.vert");
 const SPRITE_FRAGMENT: &str = include_str!("shaders/sprite.frag");
@@ -180,7 +180,7 @@ impl Gpu {
                     "shake",
                     "panel",
                     "autumn",
-                    "blossom",
+                    "leafStyle",
                     "wilt",
                     "glass",
                 ],
@@ -215,7 +215,7 @@ impl Gpu {
                     "heights",
                     "panel",
                     "autumn",
-                    "blossom",
+                    "leafStyle",
                     "wilt",
                     "drift",
                 ],
@@ -383,7 +383,11 @@ impl Gpu {
         // An empty rectangle hides nothing.
         let panel = panel.unwrap_or([0.0; 4]);
         let autumn = if simulation.leafy() { 1.0 } else { 0.0 };
-        let blossom = if simulation.blossom() { 1.0 } else { 0.0 };
+        let leaf_style = match simulation.mode() {
+            Mode::Blossom => 1.0,
+            Mode::Hearts => 2.0,
+            _ => 0.0,
+        };
         let wilt = if simulation.wilts() { 1.0 } else { 0.0 };
         unsafe {
             gl.viewport(0, 0, surface.width, surface.height);
@@ -446,7 +450,7 @@ impl Gpu {
                 gl.uniform_1_i32(pile.location("heights"), 0);
                 gl.uniform_4_f32_slice(pile.location("panel"), &panel);
                 gl.uniform_1_f32(pile.location("autumn"), autumn);
-                gl.uniform_1_f32(pile.location("blossom"), blossom);
+                gl.uniform_1_f32(pile.location("leafStyle"), leaf_style);
                 gl.uniform_1_f32(pile.location("wilt"), wilt);
                 for layer in &piles {
                     let count = layer.occluders.len().min(OCCLUDERS);
@@ -558,7 +562,7 @@ impl Gpu {
                 gl.uniform_2_f32_slice(sprite.location("shake"), &shake);
                 gl.uniform_4_f32_slice(sprite.location("panel"), &panel);
                 gl.uniform_1_f32(sprite.location("autumn"), autumn);
-                gl.uniform_1_f32(sprite.location("blossom"), blossom);
+                gl.uniform_1_f32(sprite.location("leafStyle"), leaf_style);
                 gl.uniform_1_f32(sprite.location("wilt"), wilt);
                 gl.draw_arrays_instanced(glow::TRIANGLE_STRIP, 0, 4, sprites as i32);
                 if let Some((texture, _)) = field {

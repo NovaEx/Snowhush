@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use snowhush_core::halloween::Choice;
 use snowhush_core::simulation::{Mode, Snowfall};
 
-const MODES: [Mode; 4] = [Mode::Snow, Mode::Autumn, Mode::Rain, Mode::Blossom];
+const MODES: [Mode; 5] = [Mode::Snow, Mode::Autumn, Mode::Rain, Mode::Blossom, Mode::Hearts];
 
 #[derive(Clone, Copy)]
 pub struct Settings {

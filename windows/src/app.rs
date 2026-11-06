@@ -53,6 +53,7 @@ const ID_MAX_PERFORMANCE: u32 = 215;
 const ID_DEEP: u32 = 216;
 const ID_BLOSSOM: u32 = 217;
 const ID_SPONSOR: u32 = 218;
+const ID_HEARTS: u32 = 219;
 
 const SPONSORS: &str = "https://github.com/sponsors/mbezruchko";
 const TIMER_WELCOME: usize = 1;
@@ -112,7 +113,7 @@ impl Emblem {
                 Mode::Snow => Emblem::Snowflake,
                 Mode::Autumn => Emblem::Leaf,
                 Mode::Rain => Emblem::Rain,
-                Mode::Blossom => Emblem::Blossom,
+                Mode::Blossom | Mode::Hearts => Emblem::Blossom,
             }
         }
     }
@@ -363,6 +364,7 @@ fn entries(settings: &Settings, login: bool) -> Vec<Entry> {
         Entry::choice(ID_AUTUMN, "Autumn Leaves", autumn),
         Entry::choice(ID_RAIN, "Rain", mode == Mode::Rain),
         Entry::choice(ID_BLOSSOM, "Cherry Blossom", blossom),
+        Entry::choice(ID_HEARTS, "Hearts", mode == Mode::Hearts),
         Entry::Separator,
         Entry::item(ID_HALLOWEEN, "Halloween", halloween::wanted(settings.halloween), mode == Mode::Snow),
     ];
@@ -374,6 +376,8 @@ fn entries(settings: &Settings, login: bool) -> Vec<Entry> {
             "Wither Leaves"
         } else if blossom {
             "Wilt Petals"
+        } else if mode == Mode::Hearts {
+            "Fade Hearts"
         } else {
             "Melt Snow"
         };
@@ -384,6 +388,7 @@ fn entries(settings: &Settings, login: bool) -> Vec<Entry> {
         Mode::Autumn => "Leaves on Windows",
         Mode::Rain => "Rain on Windows",
         Mode::Blossom => "Petals on Windows",
+        Mode::Hearts => "Hearts on Windows",
     };
     let mut options = behavior;
     options.extend([
@@ -408,6 +413,8 @@ fn entries(settings: &Settings, login: bool) -> Vec<Entry> {
             "Clear Leaves"
         } else if blossom {
             "Clear Petals"
+        } else if mode == Mode::Hearts {
+            "Clear Hearts"
         } else {
             "Clear Snow"
         };
@@ -488,11 +495,12 @@ fn choose(window: HWND, chosen: u32, login: bool) {
             });
             refresh_icon(window);
         }
-        ID_SNOW | ID_AUTUMN | ID_RAIN | ID_BLOSSOM => {
+        ID_SNOW | ID_AUTUMN | ID_RAIN | ID_BLOSSOM | ID_HEARTS => {
             let mode = match chosen {
                 ID_AUTUMN => Mode::Autumn,
                 ID_RAIN => Mode::Rain,
                 ID_BLOSSOM => Mode::Blossom,
+                ID_HEARTS => Mode::Hearts,
                 _ => Mode::Snow,
             };
             APP.with_borrow_mut(|app| {

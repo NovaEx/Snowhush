@@ -596,6 +596,22 @@ fn cherry_blossom_petals_fall_and_lie_as_leaves_do() {
 }
 
 #[test]
+fn hearts_fall_and_settle_as_leaf_sprites() {
+    let mut simulation = SnowSimulation::new(800.0, 600.0, Snowfall::Heavy);
+    simulation.set_mode(Mode::Blossom);
+    simulation.set_mode(Mode::Hearts);
+    assert_eq!(simulation.mode(), Mode::Hearts);
+    assert!(simulation.leafy() && !simulation.blossom());
+
+    run(&mut simulation, 30.0, AWAY);
+    assert!(simulation.has_snow(), "no hearts settled");
+    let mut sprites = vec![Sprite::default(); simulation.sprite_count()];
+    let count = simulation.write_sprites(&mut sprites);
+    assert!(count > 0);
+    assert!(sprites[..count].iter().all(|sprite| sprite.leaf[0] > 0.0));
+}
+
+#[test]
 fn unwithered_leaves_heap_no_deeper_than_snow() {
     let mut simulation = SnowSimulation::new(800.0, 600.0, Snowfall::Heavy);
     simulation.set_mode(Mode::Autumn);
