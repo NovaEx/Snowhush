@@ -49,4 +49,15 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - run: swift build -c release
+      - name: Build and package Snowhush
+        run: |
+          ./build.sh
+          stage="$(mktemp -d)"
+          ditto build/Snowhush.app "$stage/Snowhush.app"
+          hdiutil create -volname Snowhush -srcfolder "$stage" -format UDZO build/Snowhush.dmg
+          hdiutil verify build/Snowhush.dmg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Snowhush-macOS
+          path: build/Snowhush.dmg
+          if-no-files-found: error
